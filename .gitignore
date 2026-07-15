@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+
+# Generated pipeline artifacts (reproducible by re-running the pipeline)
+deepinsight/data/*.npy
+deepinsight/image/*.npy
+deepinsight/models/
+deepinsight/output/
