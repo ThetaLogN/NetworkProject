@@ -7,3 +7,9 @@ deepinsight/data/*.npy
 deepinsight/image/*.npy
 deepinsight/models/
 deepinsight/output/
+gaf/image/*.npy
+gaf/image/*.png
+gaf/output/
+igaf/image/*.npy
+igaf/image/*.png
+igaf/output/
