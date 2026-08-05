@@ -14,7 +14,7 @@ distinta:
 Output per il dataset: tensore (N, H, W, 3) uint8.
 
 Uso da riga di comando:
-    python3 igaf_transform.py ../deepinsight/data/CICIDS2017_sample.csv \
+    python3 igaf_transform.py ../dataset/CICIDS2017_sample.csv \
         --label-column Label --binary-benign BENIGN \
         --output-dir output/cicids_igaf
 

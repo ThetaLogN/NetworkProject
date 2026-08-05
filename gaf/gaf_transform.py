@@ -7,7 +7,7 @@ e convertita in un'immagine GAF con pyts. Sono supportati:
   - entrambi impilati come 2 canali -> tensore (N, 2, H, W)
 
 Uso da riga di comando:
-    python3 gaf_transform.py ../deepinsight/data/CICIDS2017_sample.csv \
+    python3 gaf_transform.py ../dataset/CICIDS2017_sample.csv \
         --label-column Label --binary-benign BENIGN \
         --output-dir output/cicids --image-size 40 --method both
 

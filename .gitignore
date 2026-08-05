@@ -13,3 +13,6 @@ gaf/output/
 igaf/image/*.npy
 igaf/image/*.png
 igaf/output/
+deepInsight-3D/image/*.npy
+deepInsight-3D/image/*.png
+deepInsight-3D/output/
