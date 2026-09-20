@@ -90,7 +90,7 @@ class DeepInsight3D:
         # misure diverse con scale diverse), previa trasformazione log a coda lunga.
         self._scalers = [MinMaxScaler().fit(self._prep(l)) for l in layers]
 
-        # Layout condiviso: fittato SOLO sul layer dominante (eq. 1 del paper).
+        # Layout condiviso: fittato SOLO sul layer dominante.
         dom = layers[self.dominant]
         dominant_norm = self._scalers[self.dominant].transform(self._prep(dom))
         self._it.fit(dominant_norm)
@@ -106,7 +106,7 @@ class DeepInsight3D:
             raise ValueError(f"Attesi {self._n_elements} elementi per layer.")
 
         # Stesso layout (self._it) applicato a ogni layer: l'elemento i e' nella
-        # stessa colonna in tutti i layer, quindi finisce nello stesso pixel (eq. 2-3).
+        # stessa colonna in tutti i layer, quindi finisce nello stesso pixel.
         channels = []
         for scaler, layer in zip(self._scalers, layers):
             layer_norm = np.clip(scaler.transform(self._prep(layer)), 0, 1)

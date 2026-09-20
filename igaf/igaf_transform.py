@@ -40,7 +40,7 @@ class IGAFImageEncoder:
     Per ogni campione:
       1. FFT completa del vettore -> ampiezza (|FFT|) e fase (angle(FFT)).
       2. Tre matrici GADF (metodo 'difference') su dati grezzi, ampiezza, fase,
-         ognuna riscalata indipendentemente in [-1, 1] (richiesto dall'arccos).
+         ognuna riscalata indipendentemente in [0, 1] (richiesto dall'arccos).
       3. Ogni matrice mappata in [0, 255] uint8 e assegnata a un canale:
          R = fase, G = ampiezza, B = dati grezzi.
 
@@ -52,7 +52,7 @@ class IGAFImageEncoder:
 
     def __init__(self, image_size=None):
         self.image_size = image_size
-        # sample_range=(-1,1): pyts riscala ogni serie indipendentemente prima
+        # sample_range=(0,1): pyts riscala ogni serie indipendentemente prima
         # dell'arccos; essenziale perche ampiezza e fase hanno scale diverse.
         size = 1.0 if image_size is None else image_size
         self._gadf = GramianAngularField(image_size=size, method='difference',
