@@ -5,7 +5,7 @@ e convertita in un'immagine GAF con pyts. Sono supportati:
   - GASF (Gramian Angular Summation Field)
   - GADF (Gramian Angular Difference Field)
   - entrambi impilati come 2 canali -> tensore (N, 2, H, W)
-
+ 
 Uso da riga di comando:
     python3 gaf_transform.py ../dataset/CICIDS2017_sample.csv \
         --label-column Label --binary-benign BENIGN \
