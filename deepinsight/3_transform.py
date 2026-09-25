@@ -4,12 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_sample_images(images, y, save_dir, class_names):
-    """Plots and saves example generated network images for normal vs. attack traffic."""
+    """Plots and saves example generated network images for normal vs. attack traffic,
+    as well as the overall dataset mean image."""
     # Find indices for Benign and Attack
     idx_benign = np.where(y == 0)[0][0]
     idx_attack = np.where(y == 1)[0][0]
+    overall_mean = np.mean(images, axis=0)
     
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    # 1. Comparison plot (Benign, Attack, Dataset Overall Mean)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     
     axes[0].imshow(images[idx_benign], cmap='inferno', interpolation='nearest')
     axes[0].set_title(f"Normal Flow Image (Class: {class_names[0]})")
@@ -18,13 +21,34 @@ def plot_sample_images(images, y, save_dir, class_names):
     axes[1].imshow(images[idx_attack], cmap='inferno', interpolation='nearest')
     axes[1].set_title(f"Intrusion/Attack Flow Image (Class: {class_names[1]})")
     axes[1].axis('off')
+
+    axes[2].imshow(overall_mean, cmap='inferno', interpolation='nearest')
+    axes[2].set_title("Overall Dataset Mean Image (All Flows)")
+    axes[2].axis('off')
     
     plt.suptitle("DeepInsight Transformed CICIDS2017 Flow Images", fontsize=14)
     plt.tight_layout()
-    plot_path = os.path.join(save_dir, "cicids_sample_images.png")
+    plot_path = os.path.join(save_dir, "cicids_deepinsight_all.png")
     plt.savefig(plot_path, dpi=150)
     plt.close()
     print(f"Saved sample transformed images plot to: {plot_path}")
+
+    # 2. Standalone single dataset overall mean image
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(overall_mean, cmap='inferno', interpolation='nearest')
+    ax.set_title("CICIDS2017 - Overall Dataset Mean Image (All Flows)")
+    ax.axis('off')
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    single_plot_path = os.path.join(save_dir, "cicids_deepinsight_alone.png")
+    plt.savefig(single_plot_path, dpi=150)
+    plt.close()
+    print(f"Saved dataset overall mean image to: {single_plot_path}")
+
+    # 3. Export overall mean as .npy
+    overall_npy_path = os.path.join(save_dir, "cicids_dataset_overall_mean.npy")
+    np.save(overall_npy_path, overall_mean)
+    print(f"Saved dataset overall mean array to: {overall_npy_path}")
 
 
 def main():

@@ -148,9 +148,13 @@ def load_dataset(csv_path, label_column, binary_benign=None):
 
 
 def plot_class_samples(images, y, class_names, save_path):
-    """Salva una figura con un'immagine RGB iGAF per classe."""
+    """Salva una figura con un'immagine RGB iGAF per classe piu' la media globale del dataset."""
     classes = np.unique(y)
-    fig, axes = plt.subplots(1, len(classes), figsize=(4 * len(classes), 4.5),
+    overall_mean_float = np.mean(images.astype(np.float32), axis=0)
+    overall_mean = np.clip(overall_mean_float, 0, 255).astype(np.uint8)
+
+    total_cols = len(classes) + 1
+    fig, axes = plt.subplots(1, total_cols, figsize=(4 * total_cols, 4.5),
                              squeeze=False)
     for cj, c in enumerate(classes):
         idx = np.where(y == c)[0][0]
@@ -158,10 +162,50 @@ def plot_class_samples(images, y, class_names, save_path):
         ax.imshow(images[idx], origin='lower')   # immagine RGB già in [0,255]
         ax.set_title(class_names[c])
         ax.axis('off')
-    plt.suptitle("Immagini iGAF (RGB: R=fase, G=ampiezza, B=grezzo) per classe")
+
+    # Colonna per la media dell'intero dataset
+    ax_ov = axes[0][len(classes)]
+    ax_ov.imshow(overall_mean, origin='lower')
+    ax_ov.set_title("OVERALL (Media Dataset)")
+    ax_ov.axis('off')
+
+    plt.suptitle("Immagini iGAF (RGB: R=fase, G=ampiezza, B=grezzo) per classe e Media Globale")
     plt.tight_layout()
     plt.savefig(save_path, dpi=150)
     plt.close()
+
+
+def plot_dataset_overall(images, output_dir):
+    """Salva la figura con l'immagine unica RGB del dataset (media globale) e i 3 singoli canali."""
+    overall_mean_float = np.mean(images.astype(np.float32), axis=0)
+    overall_mean = np.clip(overall_mean_float, 0, 255).astype(np.uint8)
+    np.save(os.path.join(output_dir, "dataset_overall_mean.npy"), overall_mean)
+
+    fig, axes = plt.subplots(1, 4, figsize=(16, 4.5))
+    
+    # 1. RGB composito
+    axes[0].imshow(overall_mean, origin='lower')
+    axes[0].set_title("RGB Fuso (Tutto il Dataset)")
+    axes[0].axis('off')
+    
+    # Canali R, G, B
+    channel_info = [
+        ("Canale R: Fase (FFT)", 0, 'Reds'),
+        ("Canale G: Ampiezza (FFT)", 1, 'Greens'),
+        ("Canale B: Dati Grezzi", 2, 'Blues')
+    ]
+    for i, (title, ch_idx, cmap) in enumerate(channel_info):
+        im = axes[i + 1].imshow(overall_mean[:, :, ch_idx], cmap=cmap, origin='lower')
+        axes[i + 1].set_title(title)
+        axes[i + 1].axis('off')
+        plt.colorbar(im, ax=axes[i + 1], fraction=0.046, pad=0.04)
+
+    plt.suptitle("iGAF: Immagine Unica Globale del Dataset (Media su tutti i flussi)", fontsize=13)
+    plt.tight_layout()
+    save_path = os.path.join(output_dir, "igaf_alone.png")
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Salvata immagine unica dataset in: {save_path}")
 
 
 def run(csv_path, label_column, output_dir, binary_benign=None, image_size=None):
@@ -185,7 +229,8 @@ def run(csv_path, label_column, output_dir, binary_benign=None, image_size=None)
         f.write("\n".join(f"{i}\t{name}" for i, name in enumerate(class_names)))
     enc.save(os.path.join(output_dir, "igaf_encoder.pkl"))
     plot_class_samples(images, y, class_names,
-                       os.path.join(output_dir, "igaf_samples.png"))
+                       os.path.join(output_dir, "igaf_all.png"))
+    plot_dataset_overall(images, output_dir)
 
     print(f"Output salvati in: {output_dir}")
     return images, y

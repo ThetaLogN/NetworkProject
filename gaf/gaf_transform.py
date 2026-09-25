@@ -118,28 +118,69 @@ def load_dataset(csv_path, label_column, binary_benign=None):
 
 
 def plot_class_samples(images, y, class_names, channel_names, save_path):
-    """Salva una figura con un campione GAF per classe (una riga per canale)."""
+    """Salva una figura con un campione GAF per classe piu' la media globale del dataset (una riga per canale)."""
     classes = np.unique(y)
     # images: (N, H, W) oppure (N, C, H, W)
     if images.ndim == 3:
-        images = images[:, None, :, :]
-        channel_names = [channel_names[0] if channel_names else 'gaf']
-    n_ch = images.shape[1]
+        images_4d = images[:, None, :, :]
+        ch_names = [channel_names[0] if channel_names else 'gaf']
+    else:
+        images_4d = images
+        ch_names = channel_names
+    n_ch = images_4d.shape[1]
+    overall_mean = np.mean(images_4d, axis=0)
 
-    fig, axes = plt.subplots(n_ch, len(classes),
-                             figsize=(4 * len(classes), 4 * n_ch),
+    total_cols = len(classes) + 1
+    fig, axes = plt.subplots(n_ch, total_cols,
+                             figsize=(4 * total_cols, 4 * n_ch),
                              squeeze=False)
     for ci in range(n_ch):
         for cj, c in enumerate(classes):
             idx = np.where(y == c)[0][0]
             ax = axes[ci][cj]
-            ax.imshow(images[idx, ci], cmap='rainbow', origin='lower')
-            ax.set_title(f"{class_names[c]} — {channel_names[ci]}")
+            ax.imshow(images_4d[idx, ci], cmap='rainbow', origin='lower')
+            ax.set_title(f"{class_names[c]} — {ch_names[ci]}")
             ax.axis('off')
-    plt.suptitle("Immagini GAF per classe")
+
+        # Colonna aggiuntiva: Media globale dell'intero dataset
+        ax_ov = axes[ci][len(classes)]
+        ax_ov.imshow(overall_mean[ci], cmap='rainbow', origin='lower')
+        ax_ov.set_title(f"OVERALL (Media) — {ch_names[ci]}")
+        ax_ov.axis('off')
+
+    plt.suptitle("Immagini GAF per classe e Media Globale Dataset")
     plt.tight_layout()
     plt.savefig(save_path, dpi=150)
     plt.close()
+
+
+def plot_dataset_overall(images, channel_names, output_dir):
+    """Salva l'immagine unica del dataset complessivo (media globale GAF)."""
+    if images.ndim == 3:
+        images_4d = images[:, None, :, :]
+        ch_names = [channel_names[0] if channel_names else 'gaf']
+    else:
+        images_4d = images
+        ch_names = channel_names
+    n_ch = images_4d.shape[1]
+    overall_mean = np.mean(images_4d, axis=0)  # (n_ch, H, W)
+
+    # Salva npy
+    np.save(os.path.join(output_dir, "dataset_overall_mean.npy"), overall_mean)
+
+    fig, axes = plt.subplots(1, n_ch, figsize=(5 * n_ch, 4.5), squeeze=False)
+    for ci in range(n_ch):
+        im = axes[0][ci].imshow(overall_mean[ci], cmap='rainbow', origin='lower')
+        axes[0][ci].set_title(f"GAF Media Globale — {ch_names[ci]}")
+        axes[0][ci].axis('off')
+        plt.colorbar(im, ax=axes[0][ci], fraction=0.046, pad=0.04)
+
+    plt.suptitle("GAF: Immagine Unica Globale del Dataset (Media su tutti i flussi)", fontsize=13)
+    plt.tight_layout()
+    save_path = os.path.join(output_dir, "gaf_alone.png")
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Salvata immagine unica dataset in: {save_path}")
 
 
 def run(csv_path, label_column, output_dir, binary_benign=None,
@@ -164,7 +205,8 @@ def run(csv_path, label_column, output_dir, binary_benign=None,
         f.write("\n".join(f"{i}\t{name}" for i, name in enumerate(class_names)))
     enc.save(os.path.join(output_dir, "gaf_encoder.pkl"))
     plot_class_samples(images, y, class_names, enc.channel_names,
-                       os.path.join(output_dir, "gaf_samples.png"))
+                       os.path.join(output_dir, "gaf_all.png"))
+    plot_dataset_overall(images, enc.channel_names, output_dir)
 
     print(f"Output salvati in: {output_dir}")
     return images, y

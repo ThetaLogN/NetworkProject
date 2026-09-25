@@ -135,20 +135,17 @@ class DeepInsight3D:
 
 
 def plot_channel_samples(volume, y, channel_names, save_path, class_names=None):
-    """Salva una griglia (canali x classe) di un campione per classe.
-
-    Per ogni classe sceglie il campione che massimizza l'attivazione MINIMA tra i
-    canali, così l'esempio mostrato è pieno su tutti i canali (evita i flussi
-    unidirezionali che avrebbero il canale backward vuoto).
-    """
+    """Salva una griglia (canali x (classi + 1)) con un campione per classe e la media globale del dataset."""
     classes = np.unique(y)
     n_ch = volume.shape[1]
+    overall_mean = np.mean(volume, axis=0)
     # attivazione per (campione, canale), poi il minimo tra i canali
     per_ch = volume.reshape(volume.shape[0], n_ch, -1).sum(axis=2)
     min_activation = per_ch.min(axis=1)
     rep_idx = {c: np.where(y == c)[0][np.argmax(min_activation[y == c])] for c in classes}
-    fig, axes = plt.subplots(n_ch, len(classes),
-                             figsize=(4 * len(classes), 4 * n_ch), squeeze=False)
+    total_cols = len(classes) + 1
+    fig, axes = plt.subplots(n_ch, total_cols,
+                             figsize=(4 * total_cols, 4 * n_ch), squeeze=False)
     for ci in range(n_ch):
         for cj, c in enumerate(classes):
             idx = rep_idx[c]
@@ -157,10 +154,57 @@ def plot_channel_samples(volume, y, channel_names, save_path, class_names=None):
             cls = class_names[c] if class_names is not None else f"classe {c}"
             ax.set_title(f"{cls} — {channel_names[ci]}")
             ax.axis('off')
-    plt.suptitle("DeepInsight-3D: canali per classe (stesse posizioni-pixel)")
+        
+        # Colonna aggiuntiva: Media globale dell'intero dataset
+        ax_ov = axes[ci][len(classes)]
+        ax_ov.imshow(overall_mean[ci], cmap='inferno', interpolation='nearest')
+        ax_ov.set_title(f"OVERALL (Media) — {channel_names[ci]}")
+        ax_ov.axis('off')
+
+    plt.suptitle("DeepInsight-3D: canali per classe e media globale (stesse posizioni-pixel)")
     plt.tight_layout()
     plt.savefig(save_path, dpi=150)
     plt.close()
+
+
+def plot_dataset_overall(volume, channel_names, output_dir):
+    """Salva la figura con l'immagine unica del dataset (canali separati e RGB fuso se 3 canali)."""
+    n_ch = volume.shape[1]
+    overall_mean = np.mean(volume, axis=0)  # (n_ch, H, W)
+    np.save(os.path.join(output_dir, "dataset_overall_volume_mean.npy"), overall_mean)
+    
+    if n_ch == 3:
+        rgb_mean = DeepInsight3D.to_rgb(overall_mean[None, ...])[0]
+        np.save(os.path.join(output_dir, "dataset_overall_rgb_mean.npy"), rgb_mean)
+        
+        fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+        for i in range(3):
+            im = axes[i].imshow(overall_mean[i], cmap='inferno', interpolation='nearest')
+            axes[i].set_title(f"Canale {i+1}: {channel_names[i]}")
+            axes[i].axis('off')
+            plt.colorbar(im, ax=axes[i], fraction=0.046, pad=0.04)
+            
+        axes[3].imshow(rgb_mean)
+        axes[3].set_title("Composito RGB (Tutto il Dataset)")
+        axes[3].axis('off')
+        plt.suptitle("DeepInsight-3D: Immagine Unica Globale del Dataset (Media)", fontsize=14)
+        plt.tight_layout()
+    else:
+        fig, axes = plt.subplots(1, n_ch, figsize=(4 * n_ch, 4))
+        if n_ch == 1:
+            axes = [axes]
+        for i in range(n_ch):
+            im = axes[i].imshow(overall_mean[i], cmap='inferno', interpolation='nearest')
+            axes[i].set_title(f"{channel_names[i]} (Media Globale)")
+            axes[i].axis('off')
+            plt.colorbar(im, ax=axes[i], fraction=0.046, pad=0.04)
+        plt.suptitle("DeepInsight-3D: Immagine Unica Globale del Dataset (Media)", fontsize=14)
+        plt.tight_layout()
+
+    save_path = os.path.join(output_dir, "deepinsight3d_alone.png")
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Salvata immagine unica dataset in: {save_path}")
 
 
 def main():
@@ -203,6 +247,9 @@ def main():
         np.save(os.path.join(args.output_dir, "rgb.npy"), rgb)
         print(f"Immagine RGB salvata: {rgb.shape}")
 
+    # Generazione e salvataggio dell'immagine unica globale del dataset
+    plot_dataset_overall(volume, channel_names, args.output_dir)
+
     # Label opzionali per la visualizzazione
     labels_path = args.labels
     if labels_path is None:
@@ -211,8 +258,8 @@ def main():
     if labels_path is not None:
         y = np.load(labels_path)
         plot_channel_samples(volume, y, channel_names,
-                             os.path.join(args.output_dir, "channel_samples.png"))
-        print("Salvato channel_samples.png")
+                             os.path.join(args.output_dir, "deepinsight3d_all.png"))
+        print("Salvato deepinsight3d_all.png")
 
     print(f"Output salvati in: {args.output_dir}")
 
