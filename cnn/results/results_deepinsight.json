@@ -1,0 +1,20 @@
+{
+    "dataset": "deepinsight",
+    "epochs": 20,
+    "batch_size": 128,
+    "pretrained": false,
+    "test_accuracy": 99.66419229409685,
+    "macro_f1": 0.996503953158657,
+    "inference_latency_ms": 0.3973794472263912,
+    "training_time_s": 1045.240257024765,
+    "confusion_matrix": [
+        [
+            4515,
+            29
+        ],
+        [
+            9,
+            6763
+        ]
+    ]
+}
