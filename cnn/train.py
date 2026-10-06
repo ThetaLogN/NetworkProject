@@ -21,7 +21,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
+from sklearn.metrics import (
+    classification_report, confusion_matrix, f1_score, accuracy_score,
+    precision_score, recall_score, roc_auc_score
+)
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -124,6 +127,7 @@ def evaluate(model, loader, criterion, device):
     running_loss = 0.0
     all_preds = []
     all_targets = []
+    all_probs = []
 
     start_time = time.time()
     with torch.no_grad():
@@ -135,19 +139,22 @@ def evaluate(model, loader, criterion, device):
             loss = criterion(outputs, targets)
 
             running_loss += loss.item() * inputs.size(0)
+            probs = torch.softmax(outputs, dim=1)[:, 1].cpu().numpy()
             preds = outputs.argmax(dim=1).cpu().numpy()
             all_preds.extend(preds)
             all_targets.extend(targets.cpu().numpy())
+            all_probs.extend(probs)
 
     inference_time = (time.time() - start_time) / len(all_targets) * 1000.0  # ms per sample
     val_loss = running_loss / len(all_targets)
     all_preds = np.array(all_preds)
     all_targets = np.array(all_targets)
+    all_probs = np.array(all_probs)
 
     val_acc = accuracy_score(all_targets, all_preds) * 100.0
     val_f1 = f1_score(all_targets, all_preds, average="macro")
 
-    return val_loss, val_acc, val_f1, all_preds, all_targets, inference_time
+    return val_loss, val_acc, val_f1, all_preds, all_targets, all_probs, inference_time
 
 
 def main():
@@ -210,7 +217,10 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
+    history = []
     best_val_f1 = 0.0
+    best_epoch = 1
+    time_to_best_epoch = 0.0
     best_checkpoint_path = os.path.join(save_dir, f"resnet18_best_{args.dataset}.pt")
 
     print("\nInizio addestramento...")
@@ -221,15 +231,27 @@ def main():
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         scheduler.step()
 
-        val_loss, val_acc, val_f1, _, _, _ = evaluate(model, val_loader, criterion, device)
+        val_loss, val_acc, val_f1, _, _, _, _ = evaluate(model, val_loader, criterion, device)
         ep_duration = time.time() - ep_start
 
         # Salvataggio del modello migliore
         saved_mark = ""
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
+            best_epoch = epoch
+            time_to_best_epoch = time.time() - total_start
             torch.save(model.state_dict(), best_checkpoint_path)
             saved_mark = " [*Best]"
+
+        history.append({
+            "epoch": epoch,
+            "train_loss": round(train_loss, 4),
+            "train_acc": round(train_acc, 2),
+            "val_loss": round(val_loss, 4),
+            "val_acc": round(val_acc, 2),
+            "val_f1": round(val_f1, 4),
+            "duration_s": round(ep_duration, 2)
+        })
 
         print(f"Epoca [{epoch:02d}/{args.epochs:02d}] ({ep_duration:.1f}s) | "
               f"Train Loss: {train_loss:.4f} - Acc: {train_acc:.2f}% | "
@@ -241,14 +263,42 @@ def main():
     model.load_state_dict(torch.load(best_checkpoint_path, map_location=device))
 
     # Valutazione finale dettagliata
-    _, final_acc, final_f1, final_preds, final_targets, inf_time = evaluate(model, val_loader, criterion, device)
+    _, final_acc, final_f1, final_preds, final_targets, final_probs, inf_time = evaluate(model, val_loader, criterion, device)
+
+    # Calcolo metriche avanzate di qualità
+    f1_weighted = float(f1_score(final_targets, final_preds, average="weighted"))
+    prec_macro = float(precision_score(final_targets, final_preds, average="macro"))
+    prec_weighted = float(precision_score(final_targets, final_preds, average="weighted"))
+    rec_macro = float(recall_score(final_targets, final_preds, average="macro"))
+    rec_weighted = float(recall_score(final_targets, final_preds, average="weighted"))
+    roc_auc = float(roc_auc_score(final_targets, final_probs))
+
+    # Metriche per singola classe
+    prec_per_class = precision_score(final_targets, final_preds, average=None)
+    rec_per_class = recall_score(final_targets, final_preds, average=None)
+    f1_per_class = f1_score(final_targets, final_preds, average=None)
+    class_support = np.bincount(final_targets)
+
+    # Stabilità e convergenza della loss
+    val_loss_series = [h["val_loss"] for h in history]
+    last_k = min(5, len(val_loss_series))
+    loss_stability_std = float(np.std(val_loss_series[-last_k:]))
+    final_train_loss = history[-1]["train_loss"]
+    final_val_loss = history[-1]["val_loss"]
+    loss_gap = float(abs(final_val_loss - final_train_loss))
 
     print("\n" + "=" * 55)
     print(f" REPORT DI VALUTAZIONE FINALE - {args.dataset.upper()}")
     print("=" * 55)
     print(f"Accuratezza Test:       {final_acc:.2f}%")
     print(f"Macro F1-Score:         {final_f1:.4f}")
+    print(f"Weighted F1-Score:      {f1_weighted:.4f}")
+    print(f"Macro Precision:        {prec_macro:.4f}")
+    print(f"Macro Recall:           {rec_macro:.4f}")
+    print(f"AUC-ROC:                {roc_auc:.4f}")
     print(f"Latenza di inferenza:   {inf_time:.3f} ms / campione")
+    print(f"Epoca di convergenza:   Epoca {best_epoch} ({time_to_best_epoch:.1f}s)")
+    print(f"Stabilità Loss (std u. 5 ep): {loss_stability_std:.5f}")
     print("\nMatrice di Confusione:")
     cm = confusion_matrix(final_targets, final_preds)
     print(f"[[TN={cm[0,0]} FP={cm[0,1]}], [FN={cm[1,0]} TP={cm[1,1]}]]")
@@ -263,11 +313,44 @@ def main():
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "pretrained": args.pretrained,
-        "test_accuracy": final_acc,
-        "macro_f1": final_f1,
-        "inference_latency_ms": inf_time,
-        "training_time_s": total_training_time,
-        "confusion_matrix": cm.tolist()
+        "training_quality": {
+            "test_accuracy": round(final_acc, 4),
+            "macro_f1": round(final_f1, 4),
+            "weighted_f1": round(f1_weighted, 4),
+            "macro_precision": round(prec_macro, 4),
+            "weighted_precision": round(prec_weighted, 4),
+            "macro_recall": round(rec_macro, 4),
+            "weighted_recall": round(rec_weighted, 4),
+            "roc_auc": round(roc_auc, 6),
+            "per_class": {
+                "BENIGN": {
+                    "precision": round(float(prec_per_class[0]), 4),
+                    "recall": round(float(rec_per_class[0]), 4),
+                    "f1_score": round(float(f1_per_class[0]), 4),
+                    "support": int(class_support[0])
+                },
+                "ATTACK": {
+                    "precision": round(float(prec_per_class[1]), 4),
+                    "recall": round(float(rec_per_class[1]), 4),
+                    "f1_score": round(float(f1_per_class[1]), 4),
+                    "support": int(class_support[1])
+                }
+            }
+        },
+        "convergence_and_loss_stability": {
+            "total_training_time_s": round(total_training_time, 2),
+            "best_epoch": int(best_epoch),
+            "time_to_best_epoch_s": round(time_to_best_epoch, 2),
+            "epochs_to_converge": int(best_epoch),
+            "final_train_loss": round(final_train_loss, 4),
+            "final_val_loss": round(final_val_loss, 4),
+            "train_val_loss_gap": round(loss_gap, 4),
+            "loss_stability_std_last_5_epochs": round(loss_stability_std, 6),
+            "is_stable": bool(loss_stability_std < 0.01)
+        },
+        "inference_latency_ms": round(inf_time, 4),
+        "confusion_matrix": cm.tolist(),
+        "training_history": history
     }
     result_file = os.path.join(results_dir, f"results_{args.dataset}.json")
     with open(result_file, "w") as f:

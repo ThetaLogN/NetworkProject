@@ -57,8 +57,6 @@ class GAFImageEncoder:
         ]
 
     def fit(self, X):
-        # GramianAngularField è stateless rispetto ai dati (nessun parametro
-        # appreso), ma manteniamo l'API fit/transform per coerenza.
         return self
 
     def transform(self, X):

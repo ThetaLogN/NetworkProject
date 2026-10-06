@@ -51,6 +51,41 @@ def plot_sample_images(images, y, save_dir, class_names):
     print(f"Saved dataset overall mean array to: {overall_npy_path}")
 
 
+def plot_attack_only(images, y, save_dir, attack_name="Bot"):
+    """Salva una singola immagine standalone contenente solo il flusso di attacco (e la sua media)."""
+    # Trova gli indici dei campioni di attacco (y == 1); se non ci sono, usa tutti i campioni
+    attack_indices = np.where(y == 1)[0]
+    if len(attack_indices) == 0:
+        attack_indices = np.arange(len(images))
+    
+    # 1. Singolo flusso di attacco
+    idx_attack = attack_indices[0]
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(images[idx_attack], cmap='inferno', interpolation='nearest')
+    ax.set_title(f"DeepInsight - {attack_name} Flow Image", fontsize=12, fontweight='bold')
+    ax.axis('off')
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    attack_plot_path = os.path.join(save_dir, f"{attack_name.lower()}_alone.png")
+    plt.savefig(attack_plot_path, dpi=150)
+    plt.close()
+    print(f"Saved attack flow image to: {attack_plot_path}")
+
+    # 2. Immagine media calcolata solo sui flussi di questo attacco
+    attack_mean = np.mean(images[attack_indices], axis=0)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(attack_mean, cmap='inferno', interpolation='nearest')
+    ax.set_title(f"DeepInsight - {attack_name} Mean Image (n={len(attack_indices):,})", fontsize=12, fontweight='bold')
+    ax.axis('off')
+    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    attack_mean_path = os.path.join(save_dir, f"{attack_name.lower()}_mean.png")
+    plt.savefig(attack_mean_path, dpi=150)
+    plt.close()
+    print(f"Saved attack mean image to: {attack_mean_path}")
+
+
+
 def main():
     print("=== Phase 3: Image Transformation & Dataset Generation ===")
     
@@ -88,7 +123,9 @@ def main():
 
     # 4. Plot and save sample traffic flows
     os.makedirs(image_dir, exist_ok=True)
-    plot_sample_images(transformed_images, y_clean, image_dir, class_names)
+    #plot_sample_images(transformed_images, y_clean, image_dir, class_names)
+    plot_attack_only(transformed_images, y_clean, image_dir, attack_name="DoS")
+   
 
     # 5. Export generated images and labels as NumPy .npy files
     np.save(images_save_path, transformed_images)

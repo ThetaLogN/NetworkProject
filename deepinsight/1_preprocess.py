@@ -10,7 +10,9 @@ def main():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
     # Paths relative to the script location
-    raw_data_path = os.path.join(BASE_DIR, "..", "dataset", "CICIDS2017_sample.csv")
+    #raw_data_path = os.path.join(BASE_DIR, "..", "dataset", "CICIDS2017_sample.csv")
+    #raw_data_path = os.path.join(BASE_DIR, "..", "dataset", "by_attack", "single_classes", "DoS.csv")
+    raw_data_path = os.path.join(BASE_DIR, "..", "dataset", "by_attack", "single_classes", "Bot.csv")
     X_save_path = os.path.join(BASE_DIR, "data", "X_clean.npy")
     y_save_path = os.path.join(BASE_DIR, "data", "y_clean.npy")
     features_save_path = os.path.join(BASE_DIR, "data", "feature_names.txt")
