@@ -123,8 +123,7 @@ def main():
 
     # 4. Plot and save sample traffic flows
     os.makedirs(image_dir, exist_ok=True)
-    #plot_sample_images(transformed_images, y_clean, image_dir, class_names)
-    plot_attack_only(transformed_images, y_clean, image_dir, attack_name="DoS")
+    plot_sample_images(transformed_images, y_clean, image_dir, class_names)
    
 
     # 5. Export generated images and labels as NumPy .npy files
